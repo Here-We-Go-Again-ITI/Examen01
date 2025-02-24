@@ -8,6 +8,8 @@ import Home from "./src/views/home";
 import Categories from "./src/views/categories";
 import About from "./src/views/about";
 import MisFavs from "./src/views/misFavs";
+import GetPlaces from "./src/views/getPlaces";
+import SpecificPlace from "./src/views/specificPlace";
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
@@ -21,6 +23,18 @@ function HomeStack() {
         options={{ headerShown: false }}
       />
       <Stack.Screen name="Categories" component={Categories} />
+      <Stack.Screen 
+        name="GetPlaces" 
+        component={GetPlaces}
+        options={({ route }) => ({ 
+          title: `${route.params.category.charAt(0).toUpperCase() + route.params.category.slice(1)}s in ${route.params.location}`
+        })}
+      />
+      <Stack.Screen 
+        name="SpecificPlace" 
+        component={SpecificPlace}
+        options={{ title: 'Place Details' }}
+      />
     </Stack.Navigator>
   );
 }
