@@ -19,7 +19,7 @@ const initializeDB = async () => {
 export const initDatabase = async () => {
   const database = await initializeDB();
   if (!database) {
-    console.error('Database not initialized');
+    console.error('Database not initializeddd');
     return Promise.resolve();
   }
   
