@@ -117,7 +117,7 @@ const MisFavs = ({ navigation }) => {
           <Text style={styles.emptyText}>No favorite places yet</Text>
           <TouchableOpacity
             style={styles.exploreButton}
-            onPress={() => navigation.navigate('Categories')}
+            onPress={() => navigation.navigate('Home')}
           >
             <Text style={styles.exploreButtonText}>Explore Places</Text>
           </TouchableOpacity>
