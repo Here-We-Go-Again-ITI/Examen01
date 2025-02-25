@@ -9,6 +9,7 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MisFavs = ({ navigation }) => {
   const [favorites, setFavorites] = useState([]);
@@ -18,7 +19,12 @@ const MisFavs = ({ navigation }) => {
 
   const loadFavorites = async () => {
     try {
-      setFavorites([]);
+      const storedFavorites = await AsyncStorage.getItem('favorites');
+      if (storedFavorites !== null) {
+        setFavorites(JSON.parse(storedFavorites));
+      } else {
+        setFavorites([]);
+      }
       setError(null);
     } catch (err) {
       console.error('Error loading favorites:', err);
@@ -27,6 +33,18 @@ const MisFavs = ({ navigation }) => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const removeFavorite = async (id) => {
+    try {
+      const newFavorites = favorites.filter(fav => fav.id !== id);
+      await AsyncStorage.setItem('favorites', JSON.stringify(newFavorites));
+      setFavorites(newFavorites);
+      Alert.alert('Success', 'Place removed from favorites');
+    } catch (err) {
+      console.error('Error removing favorite:', err);
+      Alert.alert('Error', 'Failed to remove from favorites');
     }
   };
 
@@ -62,7 +80,11 @@ const MisFavs = ({ navigation }) => {
               'Are you sure you want to remove this place from favorites?',
               [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Remove', onPress: () => console.log('Remove favorite'), style: 'destructive' }
+                { 
+                  text: 'Remove', 
+                  onPress: () => removeFavorite(item.id), 
+                  style: 'destructive' 
+                }
               ]
             );
           }}
@@ -109,8 +131,7 @@ const MisFavs = ({ navigation }) => {
         <FlatList
           data={favorites}
           renderItem={renderItem}
-          keyExtractor={item => item.id.toString()}
-          contentContainerStyle={styles.listContainer}
+          keyExtractor={item => item.id}
           refreshing={refreshing}
           onRefresh={onRefresh}
         />
@@ -123,45 +144,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#F26B24',
-    padding: 20,
+    marginVertical: 20,
     textAlign: 'center',
   },
-  listContainer: {
-    padding: 16,
-  },
   placeCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F5F5',
     borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    padding: 15,
+    marginBottom: 15,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
   placeInfo: {
     flex: 1,
-    marginRight: 10,
   },
   placeName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
+    marginBottom: 5,
   },
   placeAddress: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 8,
+    marginBottom: 5,
   },
   placeDetails: {
     flexDirection: 'row',
@@ -169,33 +179,32 @@ const styles = StyleSheet.create({
   },
   placeCategory: {
     fontSize: 14,
-    color: '#888',
+    color: '#444',
   },
   placeRating: {
     fontSize: 14,
     color: '#F26B24',
   },
   removeButton: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#FF4444',
     padding: 8,
     borderRadius: 5,
+    alignSelf: 'center',
+    marginLeft: 10,
   },
   removeButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: 'bold',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#666',
     marginBottom: 20,
-    textAlign: 'center',
   },
   exploreButton: {
     backgroundColor: '#F26B24',
@@ -209,20 +218,20 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: 'red',
+    color: '#FF4444',
     textAlign: 'center',
-    margin: 20,
+    marginBottom: 20,
   },
   retryButton: {
     backgroundColor: '#F26B24',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
+    padding: 15,
+    borderRadius: 10,
     alignSelf: 'center',
   },
   retryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

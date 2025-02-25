@@ -12,6 +12,7 @@ import {
   Image,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SpecificPlace = ({ route, navigation }) => {
   const { placeId } = route.params;
@@ -20,12 +21,14 @@ const SpecificPlace = ({ route, navigation }) => {
   const [error, setError] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     const setup = async () => {
       try {
         setLoading(true);
         await fetchPlaceDetails();
+        await checkIfFavorite();
       } catch (err) {
         console.error('Setup error:', err);
         Alert.alert('Error', 'Failed to initialize. Please try again.');
@@ -36,6 +39,47 @@ const SpecificPlace = ({ route, navigation }) => {
     };
     setup();
   }, []);
+
+  const checkIfFavorite = async () => {
+    try {
+      const storedFavorites = await AsyncStorage.getItem('favorites');
+      if (storedFavorites) {
+        const favorites = JSON.parse(storedFavorites);
+        setIsFavorite(favorites.some(fav => fav.id === placeId));
+      }
+    } catch (err) {
+      console.error('Error checking favorites:', err);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    try {
+      const storedFavorites = await AsyncStorage.getItem('favorites');
+      let favorites = storedFavorites ? JSON.parse(storedFavorites) : [];
+      
+      if (isFavorite) {
+        favorites = favorites.filter(fav => fav.id !== placeId);
+        Alert.alert('Success', 'Removed from favorites');
+      } else {
+        favorites.push({
+          id: placeId,
+          placeData: {
+            name: place.name,
+            address: place.address,
+            category: place.category,
+            polarity: place.polarity || 'N/A'
+          }
+        });
+        Alert.alert('Success', 'Added to favorites');
+      }
+      
+      await AsyncStorage.setItem('favorites', JSON.stringify(favorites));
+      setIsFavorite(!isFavorite);
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+      Alert.alert('Error', 'Failed to update favorites');
+    }
+  };
 
   const fetchPlaceDetails = async () => {
     try {
@@ -120,6 +164,13 @@ const SpecificPlace = ({ route, navigation }) => {
           )}
           <Text style={styles.placeName}>{place.name}</Text>
           <Text style={styles.category}>{place.category}</Text>
+          <TouchableOpacity onPress={toggleFavorite}>
+            <MaterialIcons
+              name={isFavorite ? 'favorite' : 'favorite-border'}
+              size={30}
+              color="#F26B24"
+            />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.infoSection}>
@@ -263,6 +314,8 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     margin: 10,
     elevation: 3,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   placeIcon: {
     width: 60,
@@ -274,6 +327,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#333',
+    flex: 1,
   },
   category: {
     fontSize: 16,
