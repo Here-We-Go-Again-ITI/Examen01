@@ -9,26 +9,23 @@ import {
   Linking,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
-import { initDatabase, addToFavorites, removeFromFavorites, isInFavorites } from '../database/db';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 const SpecificPlace = ({ route, navigation }) => {
   const { placeId } = route.params;
   const [place, setPlace] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [dbInitialized, setDbInitialized] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
 
   useEffect(() => {
     const setup = async () => {
       try {
         setLoading(true);
-        await initDatabase();
-        setDbInitialized(true);
         await fetchPlaceDetails();
-        const favoriteStatus = await isInFavorites(placeId);
-        setIsFavorite(favoriteStatus);
       } catch (err) {
         console.error('Setup error:', err);
         Alert.alert('Error', 'Failed to initialize. Please try again.');
@@ -45,6 +42,7 @@ const SpecificPlace = ({ route, navigation }) => {
       const response = await fetch(`http://tour-pedia.org/api/getPlaceDetails?id=${placeId}`);
       const data = await response.json();
       setPlace(data);
+      fetchReviews(placeId);
     } catch (err) {
       console.error('Fetch error:', err);
       setError('Failed to fetch place details');
@@ -52,26 +50,29 @@ const SpecificPlace = ({ route, navigation }) => {
     }
   };
 
-  const toggleFavorite = async () => {
-    if (!dbInitialized) {
-      Alert.alert('Error', 'Database not initialized. Please try again.');
-      return;
-    }
-
+  const fetchReviews = async (placeId) => {
     try {
-      if (isFavorite) {
-        await removeFromFavorites(placeId);
-        setIsFavorite(false);
-        Alert.alert('Success', 'Removed from favorites');
-      } else {
-        await addToFavorites(placeId, place);
-        setIsFavorite(true);
-        Alert.alert('Success', 'Added to favorites');
-      }
+      const response = await fetch(`http://tour-pedia.org/api/getReviewsByPlaceId?placeId=${placeId}`);
+      const data = await response.json();
+      setReviews(data);
     } catch (err) {
-      console.error('Toggle favorite error:', err);
-      Alert.alert('Error', 'Failed to update favorites. Please try again.');
+      console.error('Error fetching reviews:', err);
+    } finally {
+      setLoadingReviews(false);
     }
+  };
+
+  const getLanguageEmoji = (lang) => {
+    const flags = {
+      'en': '🇬🇧',
+      'es': '🇪🇸',
+      'ca': '🏴',
+      'fr': '🇫🇷',
+      'it': '🇮🇹',
+      'de': '🇩🇪',
+      'lt': '🇱🇹',
+    };
+    return flags[lang] || '🌐';
   };
 
   if (loading) {
@@ -93,8 +94,6 @@ const SpecificPlace = ({ route, navigation }) => {
             setError(null);
             try {
               await fetchPlaceDetails();
-              const favoriteStatus = await isInFavorites(placeId);
-              setIsFavorite(favoriteStatus);
             } catch (err) {
               setError(err.message);
             } finally {
@@ -110,47 +109,140 @@ const SpecificPlace = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.name}>{place.name}</Text>
-        <Text style={styles.address}>{place.address}</Text>
-        
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
-          {place.phone_number && (
-            <Text style={styles.info}>Phone: {place.phone_number}</Text>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.header}>
+          {place.icon && (
+            <Image 
+              source={{ uri: place.icon }} 
+              style={styles.placeIcon}
+              resizeMode="contain"
+            />
           )}
+          <Text style={styles.placeName}>{place.name}</Text>
+          <Text style={styles.category}>{place.category}</Text>
+        </View>
+
+        <View style={styles.infoSection}>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="location-on" size={24} color="#F26B24" />
+            <Text style={styles.infoText}>{place.address}</Text>
+          </View>
+          
+          {place.phone_number && (
+            <View style={styles.infoRow}>
+              <MaterialIcons name="phone" size={24} color="#F26B24" />
+              <Text style={styles.infoText}>{place.international_phone_number}</Text>
+            </View>
+          )}
+
           {place.website && (
-            <TouchableOpacity onPress={() => Linking.openURL(place.website)}>
-              <Text style={styles.link}>Website</Text>
+            <TouchableOpacity 
+              style={styles.infoRow}
+              onPress={() => Linking.openURL(place.website)}
+            >
+              <MaterialIcons name="language" size={24} color="#F26B24" />
+              <Text style={[styles.infoText, styles.link]}>Visit Website</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Details</Text>
-          <Text style={styles.info}>Category: {place.category}</Text>
-          <Text style={styles.info}>Location: {place.location}</Text>
-          <Text style={styles.info}>Rating: {place.polarity}/10</Text>
-          <Text style={styles.info}>Number of Reviews: {place.numReviews}</Text>
+        <View style={styles.socialSection}>
+          {place.external_urls?.Facebook && (
+            <TouchableOpacity 
+              style={styles.socialButton}
+              onPress={() => Linking.openURL(place.external_urls.Facebook)}
+            >
+              <MaterialIcons name="facebook" size={24} color="#FFFFFF" />
+              <Text style={styles.socialButtonText}>Facebook</Text>
+            </TouchableOpacity>
+          )}
+
+          {place.external_urls?.Foursquare && (
+            <TouchableOpacity 
+              style={styles.socialButton}
+              onPress={() => Linking.openURL(place.external_urls.Foursquare)}
+            >
+              <MaterialIcons name="place" size={24} color="#FFFFFF" />
+              <Text style={styles.socialButtonText}>Foursquare</Text>
+            </TouchableOpacity>
+          )}
+
+          {place.external_urls?.GooglePlaces && (
+            <TouchableOpacity 
+              style={styles.socialButton}
+              onPress={() => Linking.openURL(place.external_urls.GooglePlaces)}
+            >
+              <MaterialIcons name="map" size={24} color="#FFFFFF" />
+              <Text style={styles.socialButtonText}>Google</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {place.external_urls?.Booking?.en && (
+        {place.statistics?.Foursquare && (
+          <View style={styles.statsSection}>
+            <Text style={styles.statsHeader}>Statistics</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{place.statistics.Foursquare.checkinsCount || 0}</Text>
+                <Text style={styles.statLabel}>Check-ins</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{place.statistics.Foursquare.usersCount || 0}</Text>
+                <Text style={styles.statLabel}>Users</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{place.statistics.Foursquare.likes || 0}</Text>
+                <Text style={styles.statLabel}>Likes</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {!loadingReviews && reviews.length > 0 && (
+          <View style={styles.reviewsSection}>
+            <Text style={styles.reviewsHeader}>
+              Reviews ({reviews.length})
+            </Text>
+            {reviews.map((review, index) => (
+              <View key={index} style={styles.reviewCard}>
+                <View style={styles.reviewHeader}>
+                  <View style={styles.reviewMeta}>
+                    <Text style={styles.reviewSource}>{review.source}</Text>
+                    <Text style={styles.reviewLanguage}>
+                      {getLanguageEmoji(review.language)}
+                    </Text>
+                  </View>
+                  <View style={styles.reviewRating}>
+                    <MaterialIcons 
+                      name={review.polarity >= 5 ? "thumb-up" : "thumb-down"} 
+                      size={18} 
+                      color={review.polarity >= 5 ? "#4CAF50" : "#F44336"} 
+                    />
+                    <Text style={[
+                      styles.reviewPolarity,
+                      { color: review.polarity >= 5 ? "#4CAF50" : "#F44336" }
+                    ]}>
+                      {review.polarity}/10
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.reviewText}>{review.text}</Text>
+                <Text style={styles.reviewDate}>
+                  {new Date(review.time).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {place.external_urls?.Booking && (
           <TouchableOpacity 
             style={styles.bookingButton}
-            onPress={() => Linking.openURL(place.external_urls.Booking.en)}
+            onPress={() => Linking.openURL(place.external_urls.Booking)}
           >
             <Text style={styles.bookingButtonText}>Book on Booking.com</Text>
           </TouchableOpacity>
         )}
-
-        <TouchableOpacity 
-          style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
-          onPress={toggleFavorite}
-        >
-          <Text style={styles.favoriteButtonText}>
-            {isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-          </Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -161,62 +253,174 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  contentContainer: {
-    padding: 20,
+  scrollView: {
+    flex: 1,
   },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#F26B24',
+  header: {
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    margin: 10,
+    elevation: 3,
+  },
+  placeIcon: {
+    width: 60,
+    height: 60,
     marginBottom: 10,
   },
-  address: {
+  placeName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#333',
+  },
+  category: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 20,
+    textTransform: 'capitalize',
+    marginTop: 5,
   },
   infoSection: {
-    marginBottom: 20,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    margin: 10,
+    padding: 15,
+    elevation: 3,
   },
-  sectionTitle: {
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  infoText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 10,
+    flex: 1,
+  },
+  link: {
+    color: '#F26B24',
+    textDecorationLine: 'underline',
+  },
+  socialSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    margin: 10,
+    gap: 10,
+  },
+  socialButton: {
+    backgroundColor: '#F26B24',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    minWidth: 100,
+    justifyContent: 'center',
+    marginVertical: 5,
+  },
+  socialButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  statsSection: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    margin: 10,
+    padding: 15,
+    elevation: 3,
+  },
+  statsHeader: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+    marginBottom: 15,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#F26B24',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 5,
+  },
+  reviewsSection: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    margin: 10,
+    padding: 15,
+    elevation: 3,
+  },
+  reviewsHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  reviewCard: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingVertical: 15,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
   },
-  info: {
-    fontSize: 16,
-    color: '#444',
-    marginBottom: 5,
+  reviewMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  link: {
+  reviewSource: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+    marginRight: 8,
+  },
+  reviewLanguage: {
     fontSize: 16,
-    color: '#F26B24',
-    textDecorationLine: 'underline',
-    marginBottom: 5,
+  },
+  reviewRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reviewPolarity: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 5,
+  },
+  reviewText: {
+    fontSize: 15,
+    color: '#333',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  reviewDate: {
+    fontSize: 12,
+    color: '#888',
+    textAlign: 'right',
   },
   bookingButton: {
     backgroundColor: '#003580',
     padding: 15,
     borderRadius: 10,
+    margin: 10,
     alignItems: 'center',
-    marginBottom: 15,
   },
   bookingButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  favoriteButton: {
-    backgroundColor: '#F26B24',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  favoriteButtonActive: {
-    backgroundColor: '#333',
-  },
-  favoriteButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',

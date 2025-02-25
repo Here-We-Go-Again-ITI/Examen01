@@ -8,11 +8,5 @@ npm install @react-navigation/stack
 npm install react-native-paper
 npx expo install @react-navigation/drawer 
 
-SQLi lite xd
-npx expo install expo-sqlite
-
-
-
 npm install
-npx expo install expo-sqlite
 npx expo start -c

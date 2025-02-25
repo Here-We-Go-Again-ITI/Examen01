@@ -9,7 +9,6 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
-import { initDatabase, getAllFavorites, removeFromFavorites } from '../database/db';
 
 const MisFavs = ({ navigation }) => {
   const [favorites, setFavorites] = useState([]);
@@ -19,12 +18,7 @@ const MisFavs = ({ navigation }) => {
 
   const loadFavorites = async () => {
     try {
-      await initDatabase();
-      const favoritePlaces = await getAllFavorites();
-      setFavorites(favoritePlaces.map(fav => ({
-        ...fav,
-        placeData: typeof fav.placeData === 'string' ? JSON.parse(fav.placeData) : fav.placeData
-      })));
+      setFavorites([]);
       setError(null);
     } catch (err) {
       console.error('Error loading favorites:', err);
@@ -43,17 +37,6 @@ const MisFavs = ({ navigation }) => {
   const onRefresh = () => {
     setRefreshing(true);
     loadFavorites();
-  };
-
-  const handleRemoveFavorite = async (placeId) => {
-    try {
-      await removeFromFavorites(placeId);
-      setFavorites(favorites.filter(fav => fav.id !== placeId));
-      Alert.alert('Success', 'Place removed from favorites');
-    } catch (err) {
-      console.error('Error removing favorite:', err);
-      Alert.alert('Error', 'Failed to remove from favorites. Please try again.');
-    }
   };
 
   const renderItem = ({ item }) => {
@@ -79,7 +62,7 @@ const MisFavs = ({ navigation }) => {
               'Are you sure you want to remove this place from favorites?',
               [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Remove', onPress: () => handleRemoveFavorite(item.id), style: 'destructive' }
+                { text: 'Remove', onPress: () => console.log('Remove favorite'), style: 'destructive' }
               ]
             );
           }}
