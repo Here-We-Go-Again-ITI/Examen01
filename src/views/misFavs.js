@@ -13,6 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 
 const MisFavs = ({ navigation }) => {
   const [favorites, setFavorites] = useState([]);
@@ -51,9 +52,11 @@ const MisFavs = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    loadFavorites();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadFavorites();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -97,7 +100,7 @@ const MisFavs = ({ navigation }) => {
         
         <TouchableOpacity
           style={styles.placeInfo}
-          onPress={() => navigation.navigate('SpecificPlace', { placeId: item.id })}
+          onPress={() => navigation.navigate('SpecificPlace', { placeId: place.place_id })}
         >
           <Text style={styles.placeName}>{place.name}</Text>
           <Text style={styles.placeAddress}>{place.address}</Text>

@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Dimensions, Linking, TouchableOpacity } from "react-native";
 import { Card, Avatar } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const DevelopersList = () => {
   const developers = [
@@ -11,6 +12,7 @@ const DevelopersList = () => {
       description:
         "Ansioso Desarrollador Full Stack necesitado de constante lavado de manos. Se caracteriza por su supervivencia a base de alcohol (el de echarse en las manos) y halls. 😎 ",
       gradientColors: ["#4facfe", "#00f2fe"],
+      github: "https://github.com/Kevinndcr",
     },
     {
       name: "Susan Guzmán",
@@ -18,6 +20,7 @@ const DevelopersList = () => {
       description:
         "Especialista en ser impuntual, se baña no muy seguido pero es una gran persona. 💅",
       gradientColors: ["#fa709a", "#fee140"],
+      github: "https://github.com/Suguzmanve",
     },
     {
       name: "Sebastián Pereza",
@@ -25,6 +28,7 @@ const DevelopersList = () => {
       description:
         "Gymrat, experto en siembra de remolachas (TCU). Por lo general, se comporta como Golden Retriever. 💪🐀",
       gradientColors: ["#6a11cb", "#2575fc"],
+      github: "https://github.com/Sebasprzd",
     },
     {
       name: "Génesis Vallejo",
@@ -50,22 +54,33 @@ const DevelopersList = () => {
 
         {developers.map((developer, index) => (
           <Card key={index} style={[styles.card, { width: windowWidth * 0.9 }]}>
-            <LinearGradient
-              colors={developer.gradientColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientHeader}
-            />
-            
-            <Card.Content style={styles.cardContent}>
-              <Avatar.Image 
-                size={80} 
-                source={developer.photo} 
-                style={styles.avatar}
+            <TouchableOpacity 
+              onPress={() => developer.github && Linking.openURL(developer.github)}
+              activeOpacity={developer.github ? 0.7 : 1}
+            >
+              <LinearGradient
+                colors={developer.gradientColors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.gradientHeader}
               />
-              <Text style={styles.name}>{developer.name}</Text>
-              <Text style={styles.description}>{developer.description}</Text>
-            </Card.Content>
+              
+              <Card.Content style={styles.cardContent}>
+                <Avatar.Image 
+                  size={80} 
+                  source={developer.photo} 
+                  style={styles.avatar}
+                />
+                <Text style={styles.name}>{developer.name}</Text>
+                <Text style={styles.description}>{developer.description}</Text>
+                {developer.github && (
+                  <View style={styles.githubLink}>
+                    <Ionicons name="logo-github" size={16} color="#333" />
+                    <Text style={styles.githubText}>View GitHub Profile</Text>
+                  </View>
+                )}
+              </Card.Content>
+            </TouchableOpacity>
           </Card>
         ))}
         
@@ -177,6 +192,20 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     textAlign: "center",
+  },
+  githubLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    backgroundColor: '#f0f0f0',
+    padding: 8,
+    borderRadius: 20,
+  },
+  githubText: {
+    marginLeft: 6,
+    color: '#333',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 
