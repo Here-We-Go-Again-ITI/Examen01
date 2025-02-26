@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,9 +10,23 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
+
+// Map of colors by category to maintain consistent styling
+const categoryColors = {
+  'accommodation': ['#FF6B6B', '#FF8E8E'],
+  'attraction': ['#4ECDC4', '#45B7AF'],
+  'restaurant': ['#FFE66D', '#FFD93D'],
+  'poi': ['#95E1D3', '#81C7BB'],
+  'default': ['#786FA6', '#574B90'],
+};
 
 const SpecificPlace = ({ route, navigation }) => {
   const { placeId } = route.params;
@@ -22,6 +36,11 @@ const SpecificPlace = ({ route, navigation }) => {
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
+  
+  // Animation references
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const reviewsAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const setup = async () => {
@@ -35,6 +54,29 @@ const SpecificPlace = ({ route, navigation }) => {
         setError(err.message);
       } finally {
         setLoading(false);
+        
+        // Start animations when content is loaded
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+          })
+        ]).start();
+        
+        // Delay reviews animation
+        setTimeout(() => {
+          Animated.timing(reviewsAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }).start();
+        }, 300);
       }
     };
     setup();
@@ -118,11 +160,27 @@ const SpecificPlace = ({ route, navigation }) => {
     };
     return flags[lang] || '🌐';
   };
+  
+  const getCategoryColors = (category) => {
+    if (!category) return categoryColors.default;
+    
+    const normalizedCategory = category.toLowerCase();
+    for (const [key, value] of Object.entries(categoryColors)) {
+      if (normalizedCategory.includes(key)) {
+        return value;
+      }
+    }
+    
+    return categoryColors.default;
+  };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#F26B24" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#574B90" />
+          <Text style={styles.loadingText}>Loading place details...</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -130,170 +188,287 @@ const SpecificPlace = ({ route, navigation }) => {
   if (error || !place) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>{error || 'Failed to load place details'}</Text>
-        <TouchableOpacity 
-          style={styles.retryButton}
-          onPress={async () => {
-            setLoading(true);
-            setError(null);
-            try {
-              await fetchPlaceDetails();
-            } catch (err) {
-              setError(err.message);
-            } finally {
-              setLoading(false);
-            }
-          }}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error-outline" size={60} color="#FF6B6B" />
+          <Text style={styles.errorText}>{error || 'Failed to load place details'}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={async () => {
+              setLoading(true);
+              setError(null);
+              try {
+                await fetchPlaceDetails();
+              } catch (err) {
+                setError(err.message);
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            <LinearGradient
+              colors={['#786FA6', '#574B90']}
+              style={styles.gradientButton}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
+  const placeColors = getCategoryColors(place.category);
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          {place.icon && (
-            <Image 
-              source={{ uri: place.icon }} 
-              style={styles.placeIcon}
-              resizeMode="contain"
-            />
-          )}
-          <Text style={styles.placeName}>{place.name}</Text>
-          <Text style={styles.category}>{place.category}</Text>
-          <TouchableOpacity onPress={toggleFavorite}>
-            <MaterialIcons
-              name={isFavorite ? 'favorite' : 'favorite-border'}
-              size={30}
-              color="#F26B24"
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.infoSection}>
-          <View style={styles.infoRow}>
-            <MaterialIcons name="location-on" size={24} color="#F26B24" />
-            <Text style={styles.infoText}>{place.address}</Text>
-          </View>
-          
-          {place.phone_number && (
-            <View style={styles.infoRow}>
-              <MaterialIcons name="phone" size={24} color="#F26B24" />
-              <Text style={styles.infoText}>{place.international_phone_number}</Text>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <Animated.View 
+          style={[
+            styles.headerSection, 
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}
+        >
+          <LinearGradient
+            colors={placeColors}
+            style={styles.headerGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.headerTitleRow}>
+              <View style={styles.headerTitleContent}>
+                <Text style={styles.categoryBadge}>{place.category}</Text>
+                <Text style={styles.placeName}>{place.name}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.favoriteButton} 
+                onPress={toggleFavorite}
+              >
+                <MaterialIcons
+                  name={isFavorite ? 'favorite' : 'favorite-border'}
+                  size={28}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
             </View>
-          )}
+          </LinearGradient>
+        </Animated.View>
 
-          {place.website && (
-            <TouchableOpacity 
-              style={styles.infoRow}
-              onPress={() => Linking.openURL(place.website)}
-            >
-              <MaterialIcons name="language" size={24} color="#F26B24" />
-              <Text style={[styles.infoText, styles.link]}>Visit Website</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <Animated.View 
+          style={[
+            styles.cardContainer, 
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}
+        >
+          <View style={styles.infoCard}>
+            <View style={styles.infoRow}>
+              <MaterialIcons name="location-on" size={22} color={placeColors[0]} />
+              <Text style={styles.infoText}>{place.address}</Text>
+            </View>
+            
+            {place.phone_number && (
+              <View style={styles.infoRow}>
+                <MaterialIcons name="phone" size={22} color={placeColors[0]} />
+                <Text style={styles.infoText}>{place.international_phone_number}</Text>
+              </View>
+            )}
 
-        <View style={styles.socialSection}>
-          {place.external_urls?.Facebook && (
-            <TouchableOpacity 
-              style={styles.socialButton}
-              onPress={() => Linking.openURL(place.external_urls.Facebook)}
-            >
-              <MaterialIcons name="facebook" size={24} color="#FFFFFF" />
-              <Text style={styles.socialButtonText}>Facebook</Text>
-            </TouchableOpacity>
-          )}
+            {place.website && (
+              <TouchableOpacity 
+                style={styles.infoRow}
+                onPress={() => Linking.openURL(place.website)}
+              >
+                <MaterialIcons name="language" size={22} color={placeColors[0]} />
+                <Text style={[styles.infoText, styles.link]}>Visit Website</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
 
-          {place.external_urls?.Foursquare && (
-            <TouchableOpacity 
-              style={styles.socialButton}
-              onPress={() => Linking.openURL(place.external_urls.Foursquare)}
-            >
-              <MaterialIcons name="place" size={24} color="#FFFFFF" />
-              <Text style={styles.socialButtonText}>Foursquare</Text>
-            </TouchableOpacity>
-          )}
+        <Animated.View 
+          style={[
+            styles.cardContainer, 
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}
+        >
+          <View style={styles.socialCard}>
+            <Text style={styles.sectionTitle}>Connect</Text>
+            <View style={styles.socialButtons}>
+              {place.external_urls?.Facebook && (
+                <TouchableOpacity 
+                  style={styles.socialButton}
+                  onPress={() => Linking.openURL(place.external_urls.Facebook)}
+                >
+                  <LinearGradient
+                    colors={['#3B5998', '#2D4373']}
+                    style={styles.socialGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <MaterialIcons name="facebook" size={20} color="#FFFFFF" />
+                    <Text style={styles.socialButtonText}>Facebook</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
 
-          {place.external_urls?.GooglePlaces && (
-            <TouchableOpacity 
-              style={styles.socialButton}
-              onPress={() => Linking.openURL(place.external_urls.GooglePlaces)}
-            >
-              <MaterialIcons name="map" size={24} color="#FFFFFF" />
-              <Text style={styles.socialButtonText}>Google</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+              {place.external_urls?.Foursquare && (
+                <TouchableOpacity 
+                  style={styles.socialButton}
+                  onPress={() => Linking.openURL(place.external_urls.Foursquare)}
+                >
+                  <LinearGradient
+                    colors={['#F94877', '#D4145A']}
+                    style={styles.socialGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <MaterialIcons name="place" size={20} color="#FFFFFF" />
+                    <Text style={styles.socialButtonText}>Foursquare</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+
+              {place.external_urls?.GooglePlaces && (
+                <TouchableOpacity 
+                  style={styles.socialButton}
+                  onPress={() => Linking.openURL(place.external_urls.GooglePlaces)}
+                >
+                  <LinearGradient
+                    colors={['#4285F4', '#34A853']}
+                    style={styles.socialGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <MaterialIcons name="map" size={20} color="#FFFFFF" />
+                    <Text style={styles.socialButtonText}>Google</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </Animated.View>
 
         {place.statistics?.Foursquare && (
-          <View style={styles.statsSection}>
-            <Text style={styles.statsHeader}>Statistics</Text>
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{place.statistics.Foursquare.checkinsCount || 0}</Text>
-                <Text style={styles.statLabel}>Check-ins</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{place.statistics.Foursquare.usersCount || 0}</Text>
-                <Text style={styles.statLabel}>Users</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{place.statistics.Foursquare.likes || 0}</Text>
-                <Text style={styles.statLabel}>Likes</Text>
+          <Animated.View 
+            style={[
+              styles.cardContainer, 
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            ]}
+          >
+            <View style={styles.statsCard}>
+              <Text style={styles.sectionTitle}>Statistics</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <LinearGradient
+                    colors={placeColors}
+                    style={styles.statCircle}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <MaterialIcons name="person" size={24} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.statNumber}>{place.statistics.Foursquare.usersCount || 0}</Text>
+                  <Text style={styles.statLabel}>Visitors</Text>
+                </View>
+                
+                <View style={styles.statItem}>
+                  <LinearGradient
+                    colors={placeColors}
+                    style={styles.statCircle}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <MaterialIcons name="check-circle" size={24} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.statNumber}>{place.statistics.Foursquare.checkinsCount || 0}</Text>
+                  <Text style={styles.statLabel}>Check-ins</Text>
+                </View>
+                
+                <View style={styles.statItem}>
+                  <LinearGradient
+                    colors={placeColors}
+                    style={styles.statCircle}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <MaterialIcons name="favorite" size={24} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.statNumber}>{place.statistics.Foursquare.likes || 0}</Text>
+                  <Text style={styles.statLabel}>Likes</Text>
+                </View>
               </View>
             </View>
-          </View>
+          </Animated.View>
         )}
 
         {!loadingReviews && reviews.length > 0 && (
-          <View style={styles.reviewsSection}>
-            <Text style={styles.reviewsHeader}>
-              Reviews ({reviews.length})
-            </Text>
-            {reviews.map((review, index) => (
-              <View key={index} style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  <View style={styles.reviewMeta}>
-                    <Text style={styles.reviewSource}>{review.source}</Text>
-                    <Text style={styles.reviewLanguage}>
-                      {getLanguageEmoji(review.language)}
-                    </Text>
-                  </View>
-                  <View style={styles.reviewRating}>
-                    <MaterialIcons 
-                      name={review.polarity >= 5 ? "thumb-up" : "thumb-down"} 
-                      size={18} 
-                      color={review.polarity >= 5 ? "#4CAF50" : "#F44336"} 
-                    />
-                    <Text style={[
-                      styles.reviewPolarity,
-                      { color: review.polarity >= 5 ? "#4CAF50" : "#F44336" }
+          <Animated.View style={{ opacity: reviewsAnim }}>
+            <View style={styles.reviewsSection}>
+              <Text style={styles.reviewsHeader}>
+                Reviews ({reviews.length})
+              </Text>
+              {reviews.map((review, index) => (
+                <View key={index} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    <View style={styles.reviewMeta}>
+                      <MaterialIcons name="comment" size={16} color="#64748B" />
+                      <Text style={styles.reviewSource}>{review.source}</Text>
+                      <Text style={styles.reviewLanguage}>
+                        {getLanguageEmoji(review.language)}
+                      </Text>
+                    </View>
+                    <View style={[
+                      styles.reviewRating,
+                      { backgroundColor: review.polarity >= 5 ? '#E6F9F1' : '#FEE4E2' }
                     ]}>
-                      {review.polarity}/10
-                    </Text>
+                      <MaterialIcons 
+                        name={review.polarity >= 5 ? "thumb-up" : "thumb-down"} 
+                        size={14} 
+                        color={review.polarity >= 5 ? "#10B981" : "#F43F5E"} 
+                      />
+                      <Text style={[
+                        styles.reviewPolarity,
+                        { color: review.polarity >= 5 ? "#10B981" : "#F43F5E" }
+                      ]}>
+                        {review.polarity}/10
+                      </Text>
+                    </View>
                   </View>
+                  <Text style={styles.reviewText}>{review.text}</Text>
+                  <Text style={styles.reviewDate}>
+                    {new Date(review.time).toLocaleDateString()}
+                  </Text>
                 </View>
-                <Text style={styles.reviewText}>{review.text}</Text>
-                <Text style={styles.reviewDate}>
-                  {new Date(review.time).toLocaleDateString()}
-                </Text>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          </Animated.View>
         )}
 
         {place.external_urls?.Booking && (
-          <TouchableOpacity 
-            style={styles.bookingButton}
-            onPress={() => Linking.openURL(place.external_urls.Booking)}
+          <Animated.View 
+            style={[
+              styles.bookingButtonContainer, 
+              { opacity: fadeAnim }
+            ]}
           >
-            <Text style={styles.bookingButtonText}>Book on Booking.com</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => Linking.openURL(place.external_urls.Booking)}
+            >
+              <LinearGradient
+                colors={['#003580', '#00224F']}
+                style={styles.bookingGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <MaterialIcons name="bed" size={22} color="#FFFFFF" />
+                <Text style={styles.bookingButtonText}>Book on Booking.com</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
         )}
+        
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -302,45 +477,117 @@ const SpecificPlace = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
   },
   scrollView: {
     flex: 1,
   },
-  header: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#64748B',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    margin: 10,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+    marginVertical: 20,
+  },
+  retryButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
     elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  gradientButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  headerSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  headerGradient: {
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  headerTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
-  placeIcon: {
-    width: 60,
-    height: 60,
-    marginBottom: 10,
+  headerTitleContent: {
+    flex: 1,
+    marginRight: 10,
+  },
+  categoryBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    textTransform: 'capitalize',
   },
   placeName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#333',
-    flex: 1,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  category: {
-    fontSize: 16,
-    color: '#666',
-    textTransform: 'capitalize',
-    marginTop: 5,
+  favoriteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  infoSection: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    margin: 10,
-    padding: 15,
-    elevation: 3,
+  cardContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  infoCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   infoRow: {
     flexDirection: 'row',
@@ -348,91 +595,115 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   infoText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 10,
+    fontSize: 15,
+    color: '#334155',
+    marginLeft: 12,
     flex: 1,
   },
   link: {
-    color: '#F26B24',
+    fontWeight: '600',
     textDecorationLine: 'underline',
   },
-  socialSection: {
+  socialCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 12,
+  },
+  socialButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    margin: 10,
-    gap: 10,
+    gap: 8,
   },
   socialButton: {
-    backgroundColor: '#F26B24',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginVertical: 4,
+  },
+  socialGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    minWidth: 100,
-    justifyContent: 'center',
-    marginVertical: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
   socialButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '600',
     marginLeft: 8,
-    fontWeight: '500',
   },
-  statsSection: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    margin: 10,
-    padding: 15,
-    elevation: 3,
-  },
-  statsHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+  statsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    paddingVertical: 12,
   },
   statItem: {
     alignItems: 'center',
   },
+  statCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#F26B24',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
   },
   statLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 2,
   },
   reviewsSection: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    margin: 10,
-    padding: 15,
-    elevation: 3,
+    marginHorizontal: 16,
+    marginTop: 24,
   },
   reviewsHeader: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 16,
   },
   reviewCard: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingVertical: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   reviewMeta: {
     flexDirection: 'row',
@@ -441,61 +712,62 @@ const styles = StyleSheet.create({
   reviewSource: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
-    marginRight: 8,
+    color: '#64748B',
+    marginHorizontal: 6,
   },
   reviewLanguage: {
-    fontSize: 16,
+    fontSize: 14,
   },
   reviewRating: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
   },
   reviewPolarity: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 5,
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   reviewText: {
     fontSize: 15,
-    color: '#333',
+    color: '#334155',
     lineHeight: 22,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   reviewDate: {
     fontSize: 12,
-    color: '#888',
+    color: '#94A3B8',
     textAlign: 'right',
   },
-  bookingButton: {
-    backgroundColor: '#003580',
-    padding: 15,
-    borderRadius: 10,
-    margin: 10,
+  bookingButtonContainer: {
+    marginHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 12,
+    borderRadius: 14,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  bookingGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 14,
   },
   bookingButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    marginLeft: 8,
   },
-  errorText: {
-    fontSize: 16,
-    color: 'red',
-    textAlign: 'center',
-    margin: 20,
-  },
-  retryButton: {
-    backgroundColor: '#F26B24',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-    alignSelf: 'center',
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-  },
+  bottomPadding: {
+    height: 28,
+  }
 });
 
 export default SpecificPlace;
