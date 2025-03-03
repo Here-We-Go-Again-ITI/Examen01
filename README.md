@@ -131,9 +131,9 @@ Para más detalles sobre las consultas realizadas a estas IAs, consulte el archi
 - Sistema de reseñas y calificaciones de usuarios.
 - Modo offline para acceder a destinos guardados sin conexión.
 
-## 👨‍💻 Autor
+## 👨‍💻 Autores
 
-- **Kevin Córdoba Rivera, Susan Guzmán, Sebastían Peraza, Génesis Vallejo** - *Estudiantes de Móviles II* - [UTN]
+- **Kevin Córdoba Rivera, Susan Guzmán, Sebastían Peraza, Génesis Vallejo** - *Estudiantes de Móviles II* - UTN
 
 ---
 
