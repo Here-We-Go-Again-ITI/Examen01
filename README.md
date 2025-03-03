@@ -1,7 +1,7 @@
 # Examen01 - Aplicación de Destinos Turísticos
 
 <div align="center">
-  <img src="./assets/icon.png" alt="Examen01 Logo" width="120" height="120" style="border-radius: 20px; margin-bottom: 20px;"/>
+  <img src="./src/assets/icon/icon.jpg" alt="Examen01 Logo" width="120" height="120" style="border-radius: 20px; margin-bottom: 20px;"/>
   <p><em>Descubre, explora y guarda tus destinos favoritos alrededor del mundo</em></p>
 </div>
 
@@ -134,10 +134,6 @@ Para más detalles sobre las consultas realizadas a estas IAs, consulte el archi
 ## 👨‍💻 Autor
 
 - **Kevin Córdoba Rivera, Susan Guzmán, Sebastían Peraza, Génesis Vallejo** - *Estudiantes de Móviles II* - [UTN]
-
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT - consulta el archivo [LICENSE](LICENSE) para más detalles.
 
 ---
 
